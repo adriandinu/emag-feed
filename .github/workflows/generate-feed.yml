@@ -22,23 +22,48 @@ jobs:
           import re
 
           FEED_URL = "https://www.adsolutiielectrice.ro/feed/emag/daf7bd3c466f5a01428831de88659e43"
-          MULTIPLIER = 1.20
 
           req = urllib.request.Request(
               FEED_URL,
-              headers={"User-Agent":"Mozilla/5.0"}
+              headers={"User-Agent": "Mozilla/5.0"}
           )
 
           xml = urllib.request.urlopen(req).read().decode("utf-8")
 
-          def repl(m):
-              txt = m.group(1)
-              p = float(txt.replace("RON","").replace(",",".").strip())
-              return f"<price>{p*MULTIPLIER:.2f} RON</price>"
+          def get_multiplier(price):
+              if price < 500:
+                  return 1.25      # +25%
+              elif price <= 2000:
+                  return 1.21      # +21%
+              else:
+                  return 1.19      # +19%
 
-          xml = re.sub(r"<price>(.*?)</price>", repl, xml)
+          def repl(match):
+              txt = match.group(1)
 
-          open("emag-feed.xml","w",encoding="utf8").write(xml)
+              try:
+                  price = float(
+                      txt.replace("RON", "")
+                         .replace(",", ".")
+                         .strip()
+                  )
+              except:
+                  return match.group(0)
+
+              new_price = round(price * get_multiplier(price))
+
+              return f"<price>{new_price} RON</price>"
+
+          xml = re.sub(
+              r"<price>(.*?)</price>",
+              repl,
+              xml,
+              flags=re.IGNORECASE | re.DOTALL
+          )
+
+          with open("emag-feed.xml", "w", encoding="utf-8") as f:
+              f.write(xml)
+
           EOF
 
       - name: Commit
