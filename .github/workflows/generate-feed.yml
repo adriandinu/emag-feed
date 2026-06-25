@@ -1,0 +1,53 @@
+name: Update eMAG Feed
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */2 * * *'
+
+permissions:
+  contents: write
+
+jobs:
+  update-feed:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate feed
+        run: |
+          python3 << 'EOF'
+          import urllib.request
+          import re
+
+          FEED_URL = "https://www.adsolutiielectrice.ro/feed/emag/daf7bd3c466f5a01428831de88659e43"
+          MULTIPLIER = 1.20
+
+          req = urllib.request.Request(
+              FEED_URL,
+              headers={"User-Agent":"Mozilla/5.0"}
+          )
+
+          xml = urllib.request.urlopen(req).read().decode("utf-8")
+
+          def repl(m):
+              txt = m.group(1)
+              p = float(txt.replace("RON","").replace(",",".").strip())
+              return f"<price>{p*MULTIPLIER:.2f} RON</price>"
+
+          xml = re.sub(r"<price>(.*?)</price>", repl, xml)
+
+          open("emag-feed.xml","w",encoding="utf8").write(xml)
+          EOF
+
+      - name: Commit
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+
+          git add emag-feed.xml
+
+          git diff --cached --quiet || git commit -m "Update feed"
+
+          git push
