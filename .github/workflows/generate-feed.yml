@@ -32,11 +32,11 @@ jobs:
 
           def get_multiplier(price):
               if price < 500:
-                  return 1.25      # +25%
+                  return 1.35      # +35%
               elif price <= 2000:
-                  return 1.21      # +21%
+                  return 1.30      # +30%
               else:
-                  return 1.19      # +19%
+                  return 1.28      # +28%
 
           def repl(match):
               txt = match.group(1)
