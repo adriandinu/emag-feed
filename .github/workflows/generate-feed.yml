@@ -23,6 +23,13 @@ jobs:
 
           FEED_URL = "https://www.adsolutiielectrice.ro/feed/emag/daf7bd3c466f5a01428831de88659e43"
 
+          EMAG_COMMISSION = 0.18
+          TVA_COMMISSION = 0.21
+
+          # Cost real comision pentru neplatitor TVA:
+          # 18% + TVA 21% pe comision = 21.78%
+          REAL_COMMISSION_COST = EMAG_COMMISSION * (1 + TVA_COMMISSION)
+
           req = urllib.request.Request(
               FEED_URL,
               headers={"User-Agent": "Mozilla/5.0"}
@@ -30,19 +37,29 @@ jobs:
 
           xml = urllib.request.urlopen(req).read().decode("utf-8")
 
-          def get_multiplier(price):
+          def extra_margin(price):
               if price < 500:
-                  return 1.35      # +35%
+                  return 0.08   # +8% peste acoperirea comisionului
               elif price <= 2000:
-                  return 1.30      # +30%
+                  return 0.04   # +4%
               else:
-                  return 1.28      # +28%
+                  return 0.01   # +1%
+
+          def calculate_emag_price(site_price):
+              # Preț minim ca dupa comision sa ramai cu pretul de pe site
+              base_price = site_price / (1 - REAL_COMMISSION_COST)
+
+              # Marja suplimentara
+              final_price = base_price * (1 + extra_margin(site_price))
+
+              # Fara zecimale
+              return round(final_price)
 
           def repl(match):
               txt = match.group(1)
 
               try:
-                  price = float(
+                  site_price = float(
                       txt.replace("RON", "")
                          .replace(",", ".")
                          .strip()
@@ -50,9 +67,9 @@ jobs:
               except:
                   return match.group(0)
 
-              new_price = round(price * get_multiplier(price))
+              emag_price = calculate_emag_price(site_price)
 
-              return f"<price>{new_price} RON</price>"
+              return f"<price>{emag_price} RON</price>"
 
           xml = re.sub(
               r"<price>(.*?)</price>",
